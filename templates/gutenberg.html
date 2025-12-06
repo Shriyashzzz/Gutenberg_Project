@@ -1,0 +1,264 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Gutenberg Word Analyzer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 1.1em;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            padding: 25px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.1s;
+        }
+
+        button:hover {
+            background: #5568d3;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        #results {
+            margin-top: 30px;
+            padding: 25px;
+            background: #fff;
+            border-radius: 10px;
+            border: 2px solid #667eea;
+        }
+
+        #results h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .word-list {
+            list-style: none;
+        }
+
+        .word-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .word {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .frequency {
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.9em;
+        }
+
+        .loading {
+            text-align: center;
+            color: #667eea;
+            font-style: italic;
+        }
+
+        .error {
+            color: #dc3545;
+            padding: 15px;
+            background: #f8d7da;
+            border-radius: 5px;
+            border-left: 4px solid #dc3545;
+        }
+
+        .success {
+            color: #28a745;
+            padding: 15px;
+            background: #d4edda;
+            border-radius: 5px;
+            border-left: 4px solid #28a745;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📚 Project Gutenberg</h1>
+        <p class="subtitle">Word Frequency Analyzer</p>
+
+        <div class="section">
+            <h2>Search by Title</h2>
+            <input type="text" id="titleInput" placeholder="Enter book title (e.g., Little Women)">
+            <button onclick="searchByTitle()">Search Database</button>
+        </div>
+
+        <div class="section">
+            <h2>Add New Book by URL</h2>
+            <input type="text" id="urlInput" placeholder="Enter Project Gutenberg URL">
+            <button onclick="searchByUrl()">Analyze & Store</button>
+        </div>
+
+        <div id="results" style="display: none;">
+            <h3 id="resultsTitle"></h3>
+            <div id="resultsContent"></div>
+        </div>
+    </div>
+
+    <script>
+        async function searchByTitle() {
+            const title = document.getElementById('titleInput').value.trim();
+            if (!title) {
+                alert('Please enter a book title');
+                return;
+            }
+
+            showResults('Loading...', '<p class="loading">Searching database...</p>');
+
+            try {
+                const response = await fetch('/search_title', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({title: title})
+                });
+
+                const data = await response.json();
+
+                if (data.found) {
+                    displayWords(data.title, data.words, 'Found in database');
+                } else {
+                    showResults('Not Found',
+                        '<p class="error">Book was not found in the database. Try adding it using the URL.</p>');
+                }
+            } catch (error) {
+                showResults('Error', '<p class="error">An error occurred: ' + error.message + '</p>');
+            }
+        }
+
+        async function searchByUrl() {
+            const url = document.getElementById('urlInput').value.trim();
+            if (!url) {
+                alert('Please enter a URL');
+                return;
+            }
+
+            showResults('Loading...', '<p class="loading">Fetching and analyzing book... This may take a moment.</p>');
+
+            try {
+                const response = await fetch('/search_url', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({url: url})
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    displayWords(data.title, data.words, 'Analyzed and stored successfully');
+                } else {
+                    showResults('Error', '<p class="error">' + data.message + '</p>');
+                }
+            } catch (error) {
+                showResults('Error', '<p class="error">An error occurred: ' + error.message + '</p>');
+            }
+        }
+
+        function showResults(title, content) {
+            document.getElementById('results').style.display = 'block';
+            document.getElementById('resultsTitle').textContent = title;
+            document.getElementById('resultsContent').innerHTML = content;
+        }
+
+        function displayWords(title, words, message) {
+            let html = '<p class="success">' + message + '</p>';
+            html += '<h4 style="margin-top: 20px; color: #333;">Top 10 Most Frequent Words in "' + title + '"</h4>';
+            html += '<ul class="word-list">';
+
+            words.forEach(([word, freq]) => {
+                html += '<li class="word-item">';
+                html += '<span class="word">' + word + '</span>';
+                html += '<span class="frequency">' + freq + ' times</span>';
+                html += '</li>';
+            });
+
+            html += '</ul>';
+            showResults('Results', html);
+        }
+    </script>
+</body>
+</html>
+'''
